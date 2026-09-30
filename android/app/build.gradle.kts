@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.example.nirmaan"
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
