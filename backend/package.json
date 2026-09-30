@@ -1,0 +1,28 @@
+{
+  "name": "nirmaan-backend",
+  "version": "1.0.0",
+  "description": "Nirmaan - AI-Powered Business Operating System Backend API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "nirmaan",
+    "business-operating-system",
+    "express",
+    "node",
+    "rest-api"
+  ],
+  "author": "Nirmaan Team",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "mime": "^4.1.0",
+    "morgan": "^1.10.0"
+  }
+}
