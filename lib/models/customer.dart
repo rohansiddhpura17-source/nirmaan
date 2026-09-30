@@ -10,18 +10,25 @@ class CustomerModel {
   final String? churnRisk; // Low, Medium, High
   final DateTime createdAt;
 
-  const CustomerModel({
+  CustomerModel({
     required this.id,
     required this.name,
     required this.phone,
     this.email,
     this.loyaltyPoints = 0,
-    this.totalSpent = 0.0,
+    double? totalSpent,
+    double? totalSpend,
     this.totalOrders = 0,
     this.lastVisit,
-    this.churnRisk = 'Low',
-    required this.createdAt,
-  });
+    String? churnRisk,
+    bool? isChurnRisk,
+    DateTime? createdAt,
+  })  : totalSpent = totalSpend ?? totalSpent ?? 0.0,
+        churnRisk = churnRisk ?? (isChurnRisk == true ? 'High' : 'Low'),
+        createdAt = createdAt ?? DateTime.now();
+
+  double get totalSpend => totalSpent;
+  bool get isChurnRisk => churnRisk?.toLowerCase() == 'high';
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
     return CustomerModel(

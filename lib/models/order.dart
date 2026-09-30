@@ -1,3 +1,12 @@
+enum OrderStatus {
+  completed,
+  pending,
+  processing,
+  cancelled,
+}
+
+typedef OrderItem = OrderItemModel;
+
 class OrderItemModel {
   final String id;
   final String productId;
@@ -6,7 +15,7 @@ class OrderItemModel {
   final double unitPrice;
 
   const OrderItemModel({
-    required this.id,
+    this.id = '',
     required this.productId,
     required this.productName,
     required this.quantity,
@@ -52,19 +61,42 @@ class OrderModel {
   final String? paymentMethod; // CASH, UPI, CARD
   final DateTime orderDate;
 
-  const OrderModel({
+  OrderModel({
     required this.id,
+    String? orderNumber,
     this.customerId,
     this.customerName,
     this.customerPhone,
-    required this.userId,
+    this.userId = 'usr_system',
     required this.items,
     required this.totalAmount,
     this.paymentStatus = 'PAID',
-    this.orderStatus = 'COMPLETED',
+    String? orderStatus,
+    OrderStatus? status,
     this.paymentMethod = 'UPI',
-    required this.orderDate,
-  });
+    DateTime? orderDate,
+    DateTime? createdAt,
+  })  : orderStatus =
+            orderStatus ?? (status != null ? status.name : 'COMPLETED'),
+        orderDate = orderDate ?? (createdAt ?? DateTime.now());
+
+  String get orderNumber => id;
+  DateTime get createdAt => orderDate;
+
+  OrderStatus get status {
+    switch (orderStatus.toLowerCase()) {
+      case 'completed':
+        return OrderStatus.completed;
+      case 'pending':
+        return OrderStatus.pending;
+      case 'processing':
+        return OrderStatus.processing;
+      case 'cancelled':
+        return OrderStatus.cancelled;
+      default:
+        return OrderStatus.completed;
+    }
+  }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     return OrderModel(

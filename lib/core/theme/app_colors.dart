@@ -18,6 +18,7 @@ class AppColors {
   static const Color secondaryAmber = Color(0xFFF59E0B); // Amber 500
   static const Color secondaryAmberLight = Color(0xFFFEF3C7); // Amber 100
   static const Color secondaryAmberDark = Color(0xFFD97706); // Amber 600
+  static const Color alertAmber = secondaryAmber;
 
   // Background & Surfaces (Light application background)
   static const Color backgroundLight = Color(0xFFF8FAFC); // Slate 50

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../core/routing/app_routes.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_badge.dart';
 import '../../../shared/widgets/nirmaan_card.dart';
@@ -17,15 +19,24 @@ class ProductsScreen extends StatefulWidget {
 
 class _ProductsScreenState extends State<ProductsScreen> {
   final _searchController = TextEditingController();
+  String _searchQuery = '';
   String _selectedCategory = 'All';
   final List<String> _categories = [
     'All',
-    'Grains',
-    'Oils',
-    'Beverages',
-    'Spices',
-    'Snacks'
+    'Grains & Staples',
+    'Edible Oils',
+    'Spices & Essentials',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -39,7 +50,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
         title: 'Products Catalog',
-        subtitle: '142 registered products',
+        subtitle:
+            '${PresentationSeedData.seedProducts.length} registered products',
         isDark: true,
         actions: [
           IconButton(
@@ -63,9 +75,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
               children: [
                 TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Search products by name, SKU or barcode...',
-                    prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
+                  decoration: InputDecoration(
+                    hintText: 'Search products by name, SKU or category...',
+                    prefixIcon:
+                        const Icon(Icons.search, color: AppColors.textMuted),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: AppColors.textMuted),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
                   ),
                 ),
                 const SizedBox(height: AppDimensions.space12),
@@ -90,63 +110,65 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
           const Divider(height: 1),
 
-          // Products List
+          // Products List or Empty State
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppDimensions.space16),
-              children: [
-                _buildProductTile(
-                  name: 'Royal Basmati Rice 5kg',
-                  category: 'Grains',
-                  sku: 'SKU-RBR-05',
-                  barcode: '8901234567890',
-                  costPrice: '₹380',
-                  sellPrice: '₹460',
-                  stock: 4,
-                  threshold: 10,
-                  badge: 'LOW STOCK',
-                  badgeType: BadgeType.warning,
-                ),
-                const SizedBox(height: AppDimensions.space12),
-                _buildProductTile(
-                  name: 'Fortune Sunflower Oil 1L',
-                  category: 'Oils',
-                  sku: 'SKU-FSO-01',
-                  barcode: '8901234567891',
-                  costPrice: '₹120',
-                  sellPrice: '₹145',
-                  stock: 2,
-                  threshold: 15,
-                  badge: 'CRITICAL',
-                  badgeType: BadgeType.error,
-                ),
-                const SizedBox(height: AppDimensions.space12),
-                _buildProductTile(
-                  name: 'Aashirvaad Shudh Chakki Atta 10kg',
-                  category: 'Grains',
-                  sku: 'SKU-ATT-10',
-                  barcode: '8901234567892',
-                  costPrice: '₹340',
-                  sellPrice: '₹410',
-                  stock: 28,
-                  threshold: 12,
-                  badge: 'IN STOCK',
-                  badgeType: BadgeType.success,
-                ),
-                const SizedBox(height: AppDimensions.space12),
-                _buildProductTile(
-                  name: 'Tata Tea Gold 500g',
-                  category: 'Beverages',
-                  sku: 'SKU-TTG-50',
-                  barcode: '8901234567893',
-                  costPrice: '₹220',
-                  sellPrice: '₹270',
-                  stock: 45,
-                  threshold: 15,
-                  badge: 'IN STOCK',
-                  badgeType: BadgeType.success,
-                ),
-              ],
+            child: Builder(
+              builder: (context) {
+                final allProducts = PresentationSeedData.seedProducts;
+                final filtered = allProducts.where((p) {
+                  final matchesCat = _selectedCategory == 'All' ||
+                      p.category.toLowerCase() ==
+                          _selectedCategory.toLowerCase();
+                  final matchesQuery = _searchQuery.isEmpty ||
+                      p.name.toLowerCase().contains(_searchQuery) ||
+                      (p.sku != null &&
+                          p.sku!.toLowerCase().contains(_searchQuery)) ||
+                      p.category.toLowerCase().contains(_searchQuery);
+                  return matchesCat && matchesQuery;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return const EmptyStateView(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'No Products Found',
+                    message:
+                        'No products match the selected category or search filter.',
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.all(AppDimensions.space16),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppDimensions.space12),
+                  itemBuilder: (context, index) {
+                    final p = filtered[index];
+                    final badge = p.currentStock == 0
+                        ? 'OUT OF STOCK'
+                        : p.isLowStock
+                            ? 'LOW STOCK'
+                            : 'IN STOCK';
+                    final badgeType = p.currentStock == 0
+                        ? BadgeType.error
+                        : p.isLowStock
+                            ? BadgeType.warning
+                            : BadgeType.success;
+
+                    return _buildProductTile(
+                      name: p.name,
+                      category: p.category,
+                      sku: p.sku ?? 'N/A',
+                      barcode: p.barcode ?? 'N/A',
+                      costPrice: '₹${p.purchasePrice.toStringAsFixed(0)}',
+                      sellPrice: '₹${p.sellingPrice.toStringAsFixed(0)}',
+                      stock: p.currentStock,
+                      threshold: p.minStockThreshold,
+                      badge: badge,
+                      badgeType: badgeType,
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],

@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../models/order.dart';
+import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_badge.dart';
 import '../../../shared/widgets/nirmaan_card.dart';
 import '../../../shared/widgets/nirmaan_chip.dart';
 
+/// ============================================================================
+/// Orders & Sales Screen (Figma Frame 2: Sales / Orders)
+/// ============================================================================
+/// Displays recent transactions, order states, payment types, and order items.
+/// In Phase 1, consumes typed OrderModel seed data from PresentationSeedData.
+/// In Phase 4, will connect to OrderRepository and Firestore streams.
+/// ============================================================================
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
 
@@ -20,11 +30,30 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter orders from PresentationSeedData
+    final allOrders = PresentationSeedData.seedOrders;
+    final filteredOrders = allOrders.where((order) {
+      if (_selectedFilter == 'All') return true;
+      if (_selectedFilter == 'Completed') {
+        return order.status == OrderStatus.completed;
+      }
+      if (_selectedFilter == 'Pending') {
+        return order.status == OrderStatus.pending;
+      }
+      if (_selectedFilter == 'UPI') {
+        return (order.paymentMethod ?? '').toUpperCase() == 'UPI';
+      }
+      if (_selectedFilter == 'Cash') {
+        return (order.paymentMethod ?? '').toUpperCase() == 'CASH';
+      }
+      return true;
+    }).toList();
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
         title: 'Sales & Orders',
-        subtitle: '38 orders today (₹28,450)',
+        subtitle: '${allOrders.length} orders loaded',
         isDark: true,
         actions: [
           IconButton(
@@ -62,56 +91,38 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ),
           const Divider(height: 1),
 
-          // Orders List
+          // Orders List or Empty State
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppDimensions.space16),
-              children: [
-                _buildOrderCard(
-                  orderId: 'ORD-1094',
-                  customer: 'Suresh Kumar',
-                  phone: '+91 98234 11223',
-                  items: 'Basmati Rice (5kg), Sunflower Oil (1L), Atta (10kg)',
-                  amount: '₹1,240',
-                  status: 'COMPLETED',
-                  paymentMethod: 'UPI',
-                  date: 'Today, 2:45 PM',
-                ),
-                const SizedBox(height: AppDimensions.space12),
-                _buildOrderCard(
-                  orderId: 'ORD-1093',
-                  customer: 'Anjali Sharma',
-                  phone: '+91 98451 98765',
-                  items: 'Dairy Milk Silk (x2), Parle-G Family Pack',
-                  amount: '₹680',
-                  status: 'COMPLETED',
-                  paymentMethod: 'CASH',
-                  date: 'Today, 2:15 PM',
-                ),
-                const SizedBox(height: AppDimensions.space12),
-                _buildOrderCard(
-                  orderId: 'ORD-1092',
-                  customer: 'Pooja Verma',
-                  phone: '+91 97123 45678',
-                  items: 'Sugar (5kg), Tea 500g, Spices Pack, Dry Fruits',
-                  amount: '₹3,450',
-                  status: 'COMPLETED',
-                  paymentMethod: 'UPI',
-                  date: 'Today, 1:30 PM',
-                ),
-                const SizedBox(height: AppDimensions.space12),
-                _buildOrderCard(
-                  orderId: 'ORD-1091',
-                  customer: 'Rajesh Bhai',
-                  phone: '+91 99222 33445',
-                  items: 'Soap 4-pack, Detergent 2kg',
-                  amount: '₹420',
-                  status: 'PENDING',
-                  paymentMethod: 'CREDIT',
-                  date: 'Today, 12:10 PM',
-                ),
-              ],
-            ),
+            child: filteredOrders.isEmpty
+                ? const EmptyStateView(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No Orders Found',
+                    message: 'No orders match the selected filter.',
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(AppDimensions.space16),
+                    itemCount: filteredOrders.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: AppDimensions.space12),
+                    itemBuilder: (context, index) {
+                      final order = filteredOrders[index];
+                      final itemsSummary = order.items
+                          .map((i) => '${i.productName} (x${i.quantity})')
+                          .join(', ');
+                      return _buildOrderCard(
+                        orderId: order.orderNumber,
+                        customer: order.customerName ?? 'Walk-in Customer',
+                        phone: order.customerPhone ?? 'Walk-in Customer',
+                        items: itemsSummary.isEmpty
+                            ? 'General Items'
+                            : itemsSummary,
+                        amount: '₹${order.totalAmount.toStringAsFixed(0)}',
+                        status: order.status.name.toUpperCase(),
+                        paymentMethod: order.paymentMethod ?? 'UPI',
+                        date: 'Today, ${_formatTime(order.createdAt)}',
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -197,5 +208,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ],
       ),
     );
+  }
+
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute $period';
   }
 }

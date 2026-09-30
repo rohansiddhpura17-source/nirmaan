@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_constants.dart';
@@ -21,8 +22,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'owner@nirmaan.com');
-  final _passwordController = TextEditingController(text: 'Password@123');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   UserRole _selectedRole = UserRole.businessOwner;
   bool _obscurePassword = true;
@@ -129,35 +130,61 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: AppDimensions.space24),
 
-                  // Role Selection Chips
-                  NirmaanCard(
-                    padding: const EdgeInsets.all(AppDimensions.space12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SELECT ROLE',
-                          style: AppTypography.caption.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
+                  // Role Selection Chips (DEVELOPMENT / TEST ONLY)
+                  if (kDebugMode) ...[
+                    NirmaanCard(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.alertAmber
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'DEV ONLY',
+                                  style: AppTypography.badge
+                                      .copyWith(color: AppColors.alertAmber),
+                                ),
+                              ),
+                              const SizedBox(width: AppDimensions.space8),
+                              Text(
+                                'QUICK ROLE SWITCHER',
+                                style: AppTypography.caption.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: AppDimensions.space8),
-                        Wrap(
-                          spacing: AppDimensions.space8,
-                          runSpacing: AppDimensions.space8,
-                          children: UserRole.values.map((role) {
-                            return NirmaanChip(
-                              label: role.label,
-                              isSelected: _selectedRole == role,
-                              onSelected: (_) => _selectQuickRole(role),
-                            );
-                          }).toList(),
-                        ),
-                      ],
+                          const SizedBox(height: AppDimensions.space4),
+                          const Text(
+                            'Autofills test credentials to verify RBAC navigation flows.',
+                            style: AppTypography.caption,
+                          ),
+                          const SizedBox(height: AppDimensions.space8),
+                          Wrap(
+                            spacing: AppDimensions.space8,
+                            runSpacing: AppDimensions.space8,
+                            children: UserRole.values.map((role) {
+                              return NirmaanChip(
+                                label: role.label,
+                                isSelected: _selectedRole == role,
+                                onSelected: (_) => _selectQuickRole(role),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppDimensions.space20),
+                    const SizedBox(height: AppDimensions.space20),
+                  ],
 
                   // Error Message Banner if any
                   if (authController.errorMessage != null) ...[

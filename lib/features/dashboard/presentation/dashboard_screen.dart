@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/routing/app_routes.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
@@ -179,23 +180,24 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(height: AppDimensions.space12),
 
                   // 2x2 Metric Cards Grid
-                  const Row(
+                  Row(
                     children: [
                       Expanded(
                         child: MetricCard(
                           title: 'REVENUE',
-                          value: '₹28,450',
-                          trend: '+14.2%',
+                          value:
+                              '₹${PresentationSeedData.todaySales.toStringAsFixed(0)}',
+                          trend: '+${PresentationSeedData.salesGrowthPercent}%',
                           isTrendPositive: true,
                           icon: Icons.currency_rupee_rounded,
                           iconColor: AppColors.primaryBlue,
                         ),
                       ),
-                      SizedBox(width: AppDimensions.space12),
-                      Expanded(
+                      const SizedBox(width: AppDimensions.space12),
+                      const Expanded(
                         child: MetricCard(
                           title: 'ORDERS',
-                          value: '38',
+                          value: '${PresentationSeedData.totalOrdersToday}',
                           trend: '+6 orders',
                           isTrendPositive: true,
                           icon: Icons.shopping_bag_outlined,
@@ -221,7 +223,8 @@ class DashboardScreen extends StatelessWidget {
                       Expanded(
                         child: MetricCard(
                           title: 'HEALTH SCORE',
-                          value: '88/100',
+                          value:
+                              '${PresentationSeedData.businessHealthScore}/100',
                           trend: 'Strong',
                           isTrendPositive: true,
                           icon: Icons.health_and_safety_outlined,
@@ -300,7 +303,8 @@ class DashboardScreen extends StatelessWidget {
                       const Text('Recent Transactions',
                           style: AppTypography.sectionTitle),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed(AppRoutes.products),
                         child: const Text('View All'),
                       ),
                     ],
@@ -312,35 +316,28 @@ class DashboardScreen extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     child: Column(
                       children: [
-                        _buildTransactionTile(
-                          orderId: '#ORD-1094',
-                          customer: 'Suresh Kumar',
-                          itemsCount: '4 items',
-                          amount: '₹1,240',
-                          status: 'PAID',
-                          statusType: BadgeType.success,
-                          time: '12m ago',
-                        ),
-                        const Divider(height: 1),
-                        _buildTransactionTile(
-                          orderId: '#ORD-1093',
-                          customer: 'Anjali Sharma',
-                          itemsCount: '2 items',
-                          amount: '₹680',
-                          status: 'PAID',
-                          statusType: BadgeType.success,
-                          time: '34m ago',
-                        ),
-                        const Divider(height: 1),
-                        _buildTransactionTile(
-                          orderId: '#ORD-1092',
-                          customer: 'Pooja Verma',
-                          itemsCount: '6 items',
-                          amount: '₹3,450',
-                          status: 'UPI PAID',
-                          statusType: BadgeType.info,
-                          time: '1h ago',
-                        ),
+                        for (int i = 0;
+                            i < PresentationSeedData.seedOrders.length;
+                            i++) ...[
+                          if (i > 0) const Divider(height: 1),
+                          _buildTransactionTile(
+                            orderId:
+                                '#${PresentationSeedData.seedOrders[i].orderNumber}',
+                            customer: PresentationSeedData
+                                    .seedOrders[i].customerName ??
+                                'Walk-in Customer',
+                            itemsCount:
+                                '${PresentationSeedData.seedOrders[i].items.length} items',
+                            amount:
+                                '₹${PresentationSeedData.seedOrders[i].totalAmount.toStringAsFixed(0)}',
+                            status: (PresentationSeedData
+                                        .seedOrders[i].paymentMethod ??
+                                    'UPI')
+                                .toUpperCase(),
+                            statusType: BadgeType.success,
+                            time: 'Recent',
+                          ),
+                        ],
                       ],
                     ),
                   ),

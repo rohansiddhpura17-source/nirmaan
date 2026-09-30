@@ -1,78 +1,117 @@
 import 'package:flutter/material.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_badge.dart';
 import '../../../shared/widgets/nirmaan_card.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  late List<Map<String, dynamic>> _notifications;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifications = List<Map<String, dynamic>>.from(
+      PresentationSeedData.initialNotifications.map(
+        (n) => Map<String, dynamic>.from(n),
+      ),
+    );
+  }
+
+  int get _unreadCount =>
+      _notifications.where((n) => n['isUnread'] == true).length;
+
+  void _markAllAsRead() {
+    setState(() {
+      for (final n in _notifications) {
+        n['isUnread'] = false;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('All alerts marked as read')),
+    );
+  }
+
+  BadgeType _mapBadgeType(String type) {
+    switch (type) {
+      case 'inventory':
+        return BadgeType.error;
+      case 'order':
+        return BadgeType.success;
+      case 'ai':
+        return BadgeType.ai;
+      default:
+        return BadgeType.info;
+    }
+  }
+
+  String _mapBadgeLabel(String type) {
+    switch (type) {
+      case 'inventory':
+        return 'STOCK ALERT';
+      case 'order':
+        return 'SALES EVENT';
+      case 'ai':
+        return 'AI INSIGHT';
+      default:
+        return 'SYSTEM ALERT';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final unread = _unreadCount;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
         title: 'Notifications & Alerts',
-        subtitle: '3 unread alerts',
+        subtitle: unread > 0 ? '$unread unread alerts' : 'All caught up',
         isDark: true,
         actions: [
-          TextButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All alerts marked as read')),
-              );
-            },
-            child: const Text('Mark all read',
-                style: TextStyle(color: Colors.white, fontSize: 12)),
-          ),
+          if (unread > 0)
+            TextButton(
+              onPressed: _markAllAsRead,
+              child: const Text(
+                'Mark all read',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppDimensions.space16),
-        children: [
-          _buildNotificationTile(
-            title: 'Critical Low Stock: Fortune Sunflower Oil 1L',
-            message:
-                'Only 2 units remaining in stock. Minimum threshold is 15 units. Reorder immediately.',
-            time: '10m ago',
-            type: BadgeType.error,
-            typeLabel: 'STOCK ALERT',
-            isUnread: true,
-          ),
-          const SizedBox(height: AppDimensions.space12),
-          _buildNotificationTile(
-            title: 'AI Margin Optimization Insight',
-            message:
-                'Your gross margin improved by 1.8% today due to higher spice sales. Review recommendations.',
-            time: '1h ago',
-            type: BadgeType.ai,
-            typeLabel: 'AI INSIGHT',
-            isUnread: true,
-          ),
-          const SizedBox(height: AppDimensions.space12),
-          _buildNotificationTile(
-            title: 'Customer Churn Risk Detected',
-            message:
-                '5 regular customers have not ordered in over 21 days. Automated broadcast coupon ready.',
-            time: '3h ago',
-            type: BadgeType.warning,
-            typeLabel: 'CUSTOMER ALERT',
-            isUnread: true,
-          ),
-          const SizedBox(height: AppDimensions.space12),
-          _buildNotificationTile(
-            title: 'Daily Business Backup Successful',
-            message:
-                'Cloud backup of 142 products, 38 orders and audit logs completed securely.',
-            time: 'Yesterday',
-            type: BadgeType.success,
-            typeLabel: 'SYSTEM BACKUP',
-            isUnread: false,
-          ),
-        ],
-      ),
+      body: _notifications.isEmpty
+          ? const EmptyStateView(
+              icon: Icons.notifications_none_outlined,
+              title: 'No notifications',
+              message: 'You have no pending alerts or announcements.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(AppDimensions.space16),
+              itemCount: _notifications.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppDimensions.space12),
+              itemBuilder: (context, index) {
+                final item = _notifications[index];
+                return _buildNotificationTile(
+                  title: item['title'] as String,
+                  message: item['body'] as String,
+                  time: item['time'] as String,
+                  type: _mapBadgeType(item['type'] as String),
+                  typeLabel: _mapBadgeLabel(item['type'] as String),
+                  isUnread: item['isUnread'] as bool,
+                );
+              },
+            ),
     );
   }
 

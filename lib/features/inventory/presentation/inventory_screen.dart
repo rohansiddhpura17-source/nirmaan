@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../../core/routing/app_routes.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/metric_card.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_badge.dart';
 import '../../../shared/widgets/nirmaan_card.dart';
 
+/// ============================================================================
+/// Inventory Management Screen (Figma Frame 3: Inventory)
+/// ============================================================================
+/// Displays inventory stock counts, reorder thresholds, low-stock warnings,
+/// and live search. Uses ProductModel seed data from PresentationSeedData.
+/// ============================================================================
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
 
@@ -17,6 +25,17 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -26,11 +45,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final allProducts = PresentationSeedData.seedProducts;
+    final filteredProducts = allProducts.where((p) {
+      if (_searchQuery.isEmpty) return true;
+      return p.name.toLowerCase().contains(_searchQuery) ||
+          (p.sku != null && p.sku!.toLowerCase().contains(_searchQuery)) ||
+          p.category.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    final totalInventoryValue = allProducts.fold<double>(
+      0.0,
+      (sum, p) => sum + (p.currentStock * p.purchasePrice),
+    );
+    final lowStockCount = allProducts.where((p) => p.isLowStock).length;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
         title: 'Inventory Management',
-        subtitle: '142 SKU items tracked',
+        subtitle: '${allProducts.length} SKU items tracked',
         isDark: true,
         actions: [
           IconButton(
@@ -48,21 +81,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
         padding: const EdgeInsets.all(AppDimensions.space16),
         children: [
           // KPI Summary Row
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: MetricCard(
                   title: 'TOTAL VALUE',
-                  value: '₹3,42,800',
+                  value: '₹${totalInventoryValue.toStringAsFixed(0)}',
                   icon: Icons.account_balance_wallet_outlined,
                   iconColor: AppColors.primaryBlue,
                 ),
               ),
-              SizedBox(width: AppDimensions.space12),
+              const SizedBox(width: AppDimensions.space12),
               Expanded(
                 child: MetricCard(
                   title: 'LOW STOCK',
-                  value: '3 Items',
+                  value: '$lowStockCount Items',
                   trend: 'Reorder needed',
                   isTrendPositive: false,
                   icon: Icons.warning_amber_rounded,
@@ -77,12 +110,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search SKU, name, or barcode...',
+              hintText: 'Search SKU, name, or category...',
               prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.filter_list, color: AppColors.textMuted),
-                onPressed: () {},
-              ),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                      onPressed: () => _searchController.clear(),
+                    )
+                  : const Icon(Icons.tune, color: AppColors.textMuted),
             ),
           ),
           const SizedBox(height: AppDimensions.space20),
@@ -91,56 +126,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
           const Text('Stock Status', style: AppTypography.sectionTitle),
           const SizedBox(height: AppDimensions.space12),
 
-          _buildStockItemCard(
-            name: 'Royal Basmati Rice 5kg',
-            sku: 'SKU-RBR-05',
-            category: 'Grains & Flours',
-            stock: 4,
-            threshold: 10,
-            purchasePrice: '₹380',
-            sellingPrice: '₹460',
-            badge: 'LOW STOCK',
-            badgeType: BadgeType.warning,
-          ),
-          const SizedBox(height: AppDimensions.space12),
+          if (filteredProducts.isEmpty)
+            const EmptyStateView(
+              icon: Icons.inventory_2_outlined,
+              title: 'No Products Found',
+              message: 'No inventory matches your search filter.',
+            )
+          else
+            ...filteredProducts.map((product) {
+              final badgeLabel = product.currentStock == 0
+                  ? 'OUT OF STOCK'
+                  : product.isLowStock
+                      ? 'LOW STOCK'
+                      : 'HEALTHY';
+              final badgeType = product.currentStock == 0
+                  ? BadgeType.error
+                  : product.isLowStock
+                      ? BadgeType.warning
+                      : BadgeType.success;
 
-          _buildStockItemCard(
-            name: 'Fortune Sunflower Oil 1L',
-            sku: 'SKU-FSO-01',
-            category: 'Edible Oils',
-            stock: 2,
-            threshold: 15,
-            purchasePrice: '₹120',
-            sellingPrice: '₹145',
-            badge: 'CRITICAL',
-            badgeType: BadgeType.error,
-          ),
-          const SizedBox(height: AppDimensions.space12),
-
-          _buildStockItemCard(
-            name: 'Aashirvaad Shudh Chakki Atta 10kg',
-            sku: 'SKU-ATT-10',
-            category: 'Grains & Flours',
-            stock: 28,
-            threshold: 12,
-            purchasePrice: '₹340',
-            sellingPrice: '₹410',
-            badge: 'HEALTHY',
-            badgeType: BadgeType.success,
-          ),
-          const SizedBox(height: AppDimensions.space12),
-
-          _buildStockItemCard(
-            name: 'Tata Tea Gold 500g',
-            sku: 'SKU-TTG-50',
-            category: 'Beverages',
-            stock: 45,
-            threshold: 15,
-            purchasePrice: '₹220',
-            sellingPrice: '₹270',
-            badge: 'FAST MOVING',
-            badgeType: BadgeType.info,
-          ),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppDimensions.space12),
+                child: _buildStockItemCard(
+                  name: product.name,
+                  sku: product.sku ?? 'N/A',
+                  category: product.category,
+                  stock: product.currentStock,
+                  threshold: product.minStockThreshold,
+                  purchasePrice: '₹${product.purchasePrice.toStringAsFixed(0)}',
+                  sellingPrice: '₹${product.sellingPrice.toStringAsFixed(0)}',
+                  badge: badgeLabel,
+                  badgeType: badgeType,
+                ),
+              );
+            }),
         ],
       ),
     );

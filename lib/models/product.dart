@@ -10,6 +10,7 @@ class ProductModel {
   final int lowStockThreshold;
   final String? unit;
   final String? imageUrl;
+  final String? description;
   final bool isActive;
   final DateTime createdAt;
 
@@ -21,13 +22,20 @@ class ProductModel {
     this.barcode,
     required this.purchasePrice,
     required this.sellingPrice,
-    required this.stockQuantity,
-    this.lowStockThreshold = 10,
+    int? stockQuantity,
+    int? currentStock,
+    int? lowStockThreshold,
+    int? minStockThreshold,
     this.unit = 'pcs',
     this.imageUrl,
+    this.description,
     this.isActive = true,
     required this.createdAt,
-  });
+  })  : stockQuantity = currentStock ?? stockQuantity ?? 0,
+        lowStockThreshold = minStockThreshold ?? lowStockThreshold ?? 10;
+
+  int get currentStock => stockQuantity;
+  int get minStockThreshold => lowStockThreshold;
 
   bool get isLowStock =>
       stockQuantity > 0 && stockQuantity <= lowStockThreshold;

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/routing/app_routes.dart';
@@ -77,50 +78,64 @@ class MoreScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppDimensions.space20),
 
-          // Role Switcher for Evaluation
-          NirmaanCard(
-            padding: const EdgeInsets.all(AppDimensions.space12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.security,
-                        size: 16, color: AppColors.primaryBlue),
-                    const SizedBox(width: 8),
-                    Text(
-                      'TEST ROLE-BASED ACCESS',
-                      style: AppTypography.caption.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+          // Role Switcher for Evaluation (DEVELOPMENT / TEST ONLY)
+          if (kDebugMode) ...[
+            NirmaanCard(
+              padding: const EdgeInsets.all(AppDimensions.space12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.alertAmber.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'DEV ONLY',
+                          style: AppTypography.badge
+                              .copyWith(color: AppColors.alertAmber),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.space8),
-                Wrap(
-                  spacing: 8,
-                  children: UserRole.values.map((r) {
-                    final isCurrent = role == r;
-                    return ChoiceChip(
-                      label: Text(r.label),
-                      selected: isCurrent,
-                      selectedColor: AppColors.primaryNavy,
-                      labelStyle: TextStyle(
-                        fontSize: 11,
-                        color:
-                            isCurrent ? Colors.white : AppColors.textSecondary,
-                        fontWeight:
-                            isCurrent ? FontWeight.w600 : FontWeight.w400,
+                      const SizedBox(width: AppDimensions.space8),
+                      Text(
+                        'TEST ROLE-BASED ACCESS',
+                        style: AppTypography.caption.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                      onSelected: (_) => authController.switchRoleForDemo(r),
-                    );
-                  }).toList(),
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: AppDimensions.space8),
+                  Wrap(
+                    spacing: 8,
+                    children: UserRole.values.map((r) {
+                      final isCurrent = role == r;
+                      return ChoiceChip(
+                        label: Text(r.label),
+                        selected: isCurrent,
+                        selectedColor: AppColors.primaryNavy,
+                        labelStyle: TextStyle(
+                          fontSize: 11,
+                          color: isCurrent
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                          fontWeight:
+                              isCurrent ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                        onSelected: (_) => authController.switchRoleForDemo(r),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppDimensions.space20),
+            const SizedBox(height: AppDimensions.space20),
+          ],
 
           // Intelligence & AI Section
           const Text('Intelligence & Decision Support',

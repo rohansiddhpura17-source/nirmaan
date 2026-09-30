@@ -1,13 +1,28 @@
+import '../../core/constants/environment_config.dart';
 import '../../models/user.dart';
 import '../../shared/models/user_role.dart';
 import '../storage/storage_service.dart';
 import 'auth_service.dart';
 
+/// ============================================================================
+/// DEVELOPMENT & TEST ONLY SERVICE: MockAuthService
+/// ============================================================================
+/// Used exclusively in development, staging, and widget tests for Phase 1.
+/// In production builds, this class will throw an exception to prevent accidental
+/// usage of mock authentication.
+/// ============================================================================
 class MockAuthService implements AuthService {
   final StorageService _storageService;
 
   MockAuthService({required StorageService storageService})
-      : _storageService = storageService;
+      : _storageService = storageService {
+    if (EnvironmentConfig.isProduction) {
+      throw StateError(
+        'CRITICAL SECURITY ERROR: MockAuthService is disabled in production builds. '
+        'Real Firebase Authentication service must be configured.',
+      );
+    }
+  }
 
   @override
   Future<UserModel> login({
@@ -82,8 +97,9 @@ class MockAuthService implements AuthService {
   UserRole _determineRoleFromEmail(String email) {
     final lower = email.toLowerCase();
     if (lower.contains('manager')) return UserRole.storeManager;
-    if (lower.contains('staff') || lower.contains('sales'))
+    if (lower.contains('staff') || lower.contains('sales')) {
       return UserRole.salesStaff;
+    }
     if (lower.contains('admin')) return UserRole.administrator;
     return UserRole.businessOwner;
   }

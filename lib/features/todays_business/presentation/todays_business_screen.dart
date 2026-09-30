@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
@@ -11,6 +12,8 @@ class TodaysBusinessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const recommendations = PresentationSeedData.dailyRecommendations;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: const NirmaanAppBar(
@@ -55,7 +58,7 @@ class TodaysBusinessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppDimensions.space16),
                 Text(
-                  'Your store is exhibiting strong momentum this week. Total sales are +14.2% higher than last Wednesday, driven primarily by household staples and edible oils. Footfall conversion reached 78%.',
+                  'Your store is exhibiting strong momentum this week. Total sales are +${PresentationSeedData.salesGrowthPercent}% higher than last week, driven primarily by household staples and edible oils. Footfall conversion reached 78%.',
                   style: AppTypography.body.copyWith(height: 1.5),
                 ),
               ],
@@ -73,7 +76,7 @@ class TodaysBusinessScreen extends StatelessWidget {
             color: AppColors.successGreen,
             title: 'Sales & Margin Signal',
             description:
-                'Net profit today is ₹8,320 with a 29.2% margin. Edible oils accounted for 32% of total transaction value.',
+                'Today\'s sales tracking ₹${PresentationSeedData.todaySales.toStringAsFixed(0)}. Gross margin steady at 29.4%.',
             badge: 'POSITIVE',
             badgeType: BadgeType.success,
           ),
@@ -84,7 +87,7 @@ class TodaysBusinessScreen extends StatelessWidget {
             color: AppColors.warningOrange,
             title: 'Inventory Stock Signal',
             description:
-                'Sunflower Oil and Basmati Rice are approaching depletion. Reordering 24 units of Oil is advised before 6 PM.',
+                '${PresentationSeedData.lowStockCount} items approaching depletion threshold. Wholesale reorder advised before 6 PM.',
             badge: 'ATTENTION',
             badgeType: BadgeType.warning,
           ),
@@ -95,7 +98,7 @@ class TodaysBusinessScreen extends StatelessWidget {
             color: AppColors.primaryBlue,
             title: 'Customer Engagement Signal',
             description:
-                '24 repeat customers visited today. 5 inactive regular patrons were flagged for re-engagement via WhatsApp coupon.',
+                '12 inactive patrons flagged for re-engagement via WhatsApp coupon to protect store retention.',
             badge: 'ACTIONABLE',
             badgeType: BadgeType.info,
           ),
@@ -109,25 +112,20 @@ class TodaysBusinessScreen extends StatelessWidget {
           NirmaanCard(
             padding: const EdgeInsets.all(AppDimensions.space16),
             child: Column(
-              children: [
-                _buildActionItem(
-                  number: '1',
-                  text:
-                      'Place wholesale restock order for Sunflower Oil and Basmati Rice',
-                ),
-                const Divider(height: 20),
-                _buildActionItem(
-                  number: '2',
-                  text:
-                      'Send "We Miss You" 5% discount broadcast to 12 dormant patrons',
-                ),
-                const Divider(height: 20),
-                _buildActionItem(
-                  number: '3',
-                  text:
-                      'Verify evening cash register closing balance against UPI logs',
-                ),
-              ],
+              children: List.generate(recommendations.length, (idx) {
+                final rec = recommendations[idx];
+                final isLast = idx == recommendations.length - 1;
+                return Column(
+                  children: [
+                    _buildActionItem(
+                      number: '${idx + 1}',
+                      text:
+                          '${rec['category']}: ${rec['text']} (${rec['impact']})',
+                    ),
+                    if (!isLast) const Divider(height: 20),
+                  ],
+                );
+              }),
             ),
           ),
           const SizedBox(height: AppDimensions.space32),

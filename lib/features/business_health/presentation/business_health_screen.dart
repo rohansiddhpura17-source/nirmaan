@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/seed/presentation_seed_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
@@ -11,6 +12,9 @@ class BusinessHealthScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const healthScore = PresentationSeedData.businessHealthScore;
+    const pillars = PresentationSeedData.healthPillars;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: const NirmaanAppBar(
@@ -41,7 +45,7 @@ class BusinessHealthScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '88',
+                        '$healthScore',
                         style: TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.w800,
@@ -83,53 +87,26 @@ class BusinessHealthScreen extends StatelessWidget {
               style: AppTypography.sectionTitle),
           const SizedBox(height: AppDimensions.space12),
 
-          _buildPillarCard(
-            title: 'Sales Growth & Velocity',
-            score: '92/100',
-            status: 'Excellent',
-            badgeType: BadgeType.success,
-            icon: Icons.trending_up,
-            color: AppColors.successGreen,
-            description:
-                'Steady 14% week-on-week revenue growth with strong conversion.',
-          ),
-          const SizedBox(height: AppDimensions.space12),
+          ...pillars.map((pillar) {
+            final colorInt = pillar['color'] as int;
+            final scoreInt = pillar['score'] as int;
+            final statusStr = pillar['status'] as String;
+            final isExcellent = scoreInt >= 90;
 
-          _buildPillarCard(
-            title: 'Inventory Turnover & Accuracy',
-            score: '84/100',
-            status: 'Good',
-            badgeType: BadgeType.info,
-            icon: Icons.inventory_2_outlined,
-            color: AppColors.primaryBlue,
-            description:
-                'Stock holding cost is optimal, but 2 fast movers need restock.',
-          ),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppDimensions.space12),
+              child: _buildPillarCard(
+                title: pillar['title'] as String,
+                score: '$scoreInt/100',
+                status: statusStr,
+                badgeType: isExcellent ? BadgeType.success : BadgeType.info,
+                icon: Icons.shield_outlined,
+                color: Color(colorInt),
+                description: pillar['details'] as String,
+              ),
+            );
+          }),
           const SizedBox(height: AppDimensions.space12),
-
-          _buildPillarCard(
-            title: 'Customer Retention & Loyalty',
-            score: '86/100',
-            status: 'Good',
-            badgeType: BadgeType.info,
-            icon: Icons.repeat,
-            color: AppColors.secondaryAmber,
-            description:
-                '68% repeat purchase rate. 12 patrons require re-engagement.',
-          ),
-          const SizedBox(height: AppDimensions.space12),
-
-          _buildPillarCard(
-            title: 'Profit Margin Stability',
-            score: '90/100',
-            status: 'Excellent',
-            badgeType: BadgeType.success,
-            icon: Icons.pie_chart_outline,
-            color: AppColors.successGreen,
-            description:
-                'Net margin healthy at 29.2%. Consistent pricing discipline.',
-          ),
-          const SizedBox(height: AppDimensions.space24),
 
           // Recommendations
           const Text('Health Improvement Guidance',

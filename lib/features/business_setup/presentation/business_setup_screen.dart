@@ -137,8 +137,9 @@ class _BusinessSetupScreenState extends State<BusinessSetupScreen> {
                             child: Text(cat, style: AppTypography.body));
                       }).toList(),
                       onChanged: (val) {
-                        if (val != null)
+                        if (val != null) {
                           setState(() => _selectedCategory = val);
+                        }
                       },
                     ),
                   ],

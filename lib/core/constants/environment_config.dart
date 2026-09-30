@@ -2,6 +2,9 @@ enum Environment { dev, staging, prod }
 
 class EnvironmentConfig {
   static const Environment currentEnvironment = Environment.dev;
+  static bool get isProduction => currentEnvironment == Environment.prod;
+  static bool get isDevelopment => currentEnvironment == Environment.dev;
+  static bool get isStaging => currentEnvironment == Environment.staging;
 
   // Local development backend URL
   // On Android emulator: 10.0.2.2 points to host machine
