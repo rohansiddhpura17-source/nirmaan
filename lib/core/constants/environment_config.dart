@@ -14,7 +14,7 @@ class EnvironmentConfig {
       String.fromEnvironment('API_URL', defaultValue: '');
 
   static const String productionApiUrl =
-      'https://campusverse-api-k5ny.onrender.com/api/v1';
+      'https://nirmaan-api-ydpo.onrender.com/api/v1';
   static const String localApiUrl =
       'http://localhost:5001/api/v1';
 
