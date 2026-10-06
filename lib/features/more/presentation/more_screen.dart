@@ -198,6 +198,24 @@ class MoreScreen extends StatelessWidget {
           const SizedBox(height: AppDimensions.space8),
 
           _buildMenuTile(
+            icon: Icons.local_shipping_outlined,
+            iconColor: AppColors.primaryNavy,
+            title: 'Suppliers Directory',
+            subtitle: 'Vendor contact information and supplier catalog',
+            onTap: () => Navigator.of(context).pushNamed(AppRoutes.suppliers),
+          ),
+          const SizedBox(height: AppDimensions.space8),
+
+          _buildMenuTile(
+            icon: Icons.people_outline_rounded,
+            iconColor: AppColors.primaryNavy,
+            title: 'Customers Directory',
+            subtitle: 'Customer profiles, credit balances and history',
+            onTap: () => Navigator.of(context).pushNamed(AppRoutes.customers),
+          ),
+          const SizedBox(height: AppDimensions.space8),
+
+          _buildMenuTile(
             icon: Icons.add_box_outlined,
             iconColor: AppColors.primaryNavy,
             title: 'Add New Product',
@@ -205,6 +223,7 @@ class MoreScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).pushNamed(AppRoutes.addProduct),
           ),
           const SizedBox(height: AppDimensions.space24),
+
 
           // System & Settings
           const Text('Preferences & Governance',

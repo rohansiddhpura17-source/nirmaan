@@ -22,6 +22,7 @@ class AuthRepository {
     required String password,
     required UserRole role,
     String? phone,
+    String? businessName,
   }) {
     return _authService.register(
       name: name,
@@ -29,6 +30,7 @@ class AuthRepository {
       password: password,
       role: role,
       phone: phone,
+      businessName: businessName,
     );
   }
 

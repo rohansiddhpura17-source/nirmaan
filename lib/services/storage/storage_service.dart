@@ -65,9 +65,22 @@ class StorageService {
     return prefs.getBool(AppConstants.businessSetupKey) ?? false;
   }
 
+  Future<void> setBusinessSetupCompleted(bool completed) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(AppConstants.businessSetupKey, completed);
+  }
+
+  Future<void> clearBusinessProfile() async {
+    final prefs = await _getPrefs();
+    await prefs.remove(AppConstants.businessProfileKey);
+    await prefs.remove(AppConstants.businessSetupKey);
+  }
+
   Future<void> clearSession() async {
     final prefs = await _getPrefs();
     await prefs.remove(AppConstants.tokenKey);
     await prefs.remove(AppConstants.userKey);
+    await prefs.remove(AppConstants.businessProfileKey);
+    await prefs.remove(AppConstants.businessSetupKey);
   }
 }

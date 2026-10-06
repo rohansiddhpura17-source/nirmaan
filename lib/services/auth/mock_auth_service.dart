@@ -58,6 +58,7 @@ class MockAuthService implements AuthService {
     required String password,
     required UserRole role,
     String? phone,
+    String? businessName,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
@@ -65,8 +66,11 @@ class MockAuthService implements AuthService {
       id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
       email: email,
       name: name,
-      phone: phone ?? '+91 98765 43210',
+      phone: phone,
       role: role,
+      businessId: businessName != null
+          ? 'biz_${DateTime.now().millisecondsSinceEpoch}'
+          : null,
       createdAt: DateTime.now(),
     );
 

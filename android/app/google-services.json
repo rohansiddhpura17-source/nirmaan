@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "893241443728",
+    "project_id": "nirman-e15ef",
+    "storage_bucket": "nirman-e15ef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:893241443728:android:e47000f419cb230c6b1f15",
+        "android_client_info": {
+          "package_name": "com.example.nirmaan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4f1ZI-ggNQbm1aDVHZX_i4yMKyhpr4o0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

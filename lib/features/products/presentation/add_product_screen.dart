@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_button.dart';
 import '../../../shared/widgets/nirmaan_text_field.dart';
+import '../controllers/product_controller.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -21,18 +23,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _costPriceController = TextEditingController();
   final _sellPriceController = TextEditingController();
   final _stockController = TextEditingController();
-  final _thresholdController = TextEditingController(text: '10');
-  String _selectedCategory = 'Grains & Flours';
+  final _thresholdController = TextEditingController(text: '5');
+  String _selectedCategory = 'Grains & Staples';
+  final String _unit = 'pcs';
   bool _isLoading = false;
+  String? _errorMessage;
 
   final List<String> _categories = [
-    'Grains & Flours',
+    'Grains & Staples',
     'Edible Oils',
     'Beverages',
-    'Spices & Masala',
-    'Snacks & Biscuits',
+    'Spices & Essentials',
+    'Packaged Foods',
     'Personal Care',
-    'Household Cleaning',
+    'Household',
+    'Other',
   ];
 
   @override
@@ -49,13 +54,44 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (mounted) {
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final cost = double.tryParse(_costPriceController.text.trim()) ?? 0.0;
+    final sell = double.tryParse(_sellPriceController.text.trim()) ?? 0.0;
+    final stock = int.tryParse(_stockController.text.trim()) ?? 0;
+    final threshold = int.tryParse(_thresholdController.text.trim()) ?? 5;
+
+    final controller = context.read<ProductController>();
+    final success = await controller.createProduct(
+      name: _nameController.text.trim(),
+      category: _selectedCategory,
+      sku: _skuController.text.trim().isNotEmpty ? _skuController.text.trim() : null,
+      barcode: _barcodeController.text.trim().isNotEmpty
+          ? _barcodeController.text.trim()
+          : null,
+      purchasePrice: cost,
+      sellingPrice: sell,
+      initialStock: stock,
+      lowStockThreshold: threshold,
+      unit: _unit,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Product added successfully!')),
       );
       Navigator.of(context).pop();
+    } else {
+      setState(() {
+        _errorMessage = controller.errorMessage ?? 'Failed to add product';
+      });
     }
   }
 
@@ -75,17 +111,39 @@ class _AddProductScreenState extends State<AddProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_errorMessage != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: AppDimensions.space16),
+                    padding: const EdgeInsets.all(AppDimensions.space12),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorRed.withValues(alpha: 0.1),
+                      border: Border.all(color: AppColors.errorRed),
+                      borderRadius: AppDimensions.borderMd,
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.errorRed),
+                    ),
+                  ),
+
                 NirmaanTextField(
                   label: 'Product Name *',
                   hintText: 'e.g. Fortune Sunflower Oil 1L',
                   controller: _nameController,
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Product name is required'
-                      : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Product name is required';
+                    }
+                    if (v.trim().length < 2) {
+                      return 'Name must be at least 2 characters';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: AppDimensions.space16),
 
-                // Category
+                // Category Dropdown
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -95,11 +153,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     const SizedBox(height: AppDimensions.space6),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedCategory,
-                      decoration: const InputDecoration(),
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      ),
                       items: _categories
                           .map((c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c, style: AppTypography.body)))
+                                value: c,
+                                child: Text(c),
+                              ))
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedCategory = v);
@@ -109,95 +172,101 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ),
                 const SizedBox(height: AppDimensions.space16),
 
-                // SKU & Barcode
                 Row(
                   children: [
                     Expanded(
                       child: NirmaanTextField(
-                        label: 'SKU Code',
-                        hintText: 'e.g. SKU-OIL-01',
+                        label: 'SKU (Optional)',
+                        hintText: 'e.g. OIL-FORT-1L',
                         controller: _skuController,
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: NirmaanTextField(
-                        label: 'Barcode',
-                        hintText: 'Scan or type',
+                        label: 'Barcode (Optional)',
+                        hintText: 'e.g. 8901234567890',
                         controller: _barcodeController,
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.qr_code_scanner,
-                              size: 20, color: AppColors.primaryNavy),
-                          onPressed: () {},
-                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppDimensions.space16),
 
-                // Pricing
                 Row(
                   children: [
                     Expanded(
                       child: NirmaanTextField(
-                        label: 'Purchase Cost (₹) *',
-                        hintText: '0.00',
+                        label: 'Cost Price (₹) *',
+                        hintText: '110',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         controller: _costPriceController,
-                        keyboardType: TextInputType.number,
-                        validator: (v) => v == null || v.trim().isEmpty
-                            ? 'Cost is required'
-                            : null,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Cost price required';
+                          final val = double.tryParse(v.trim());
+                          if (val == null || val < 0) return 'Enter a valid cost';
+                          return null;
+                        },
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: NirmaanTextField(
                         label: 'Selling Price (₹) *',
-                        hintText: '0.00',
+                        hintText: '135',
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         controller: _sellPriceController,
-                        keyboardType: TextInputType.number,
-                        validator: (v) => v == null || v.trim().isEmpty
-                            ? 'Price is required'
-                            : null,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Selling price required';
+                          final val = double.tryParse(v.trim());
+                          if (val == null || val <= 0) return 'Must be > 0';
+                          return null;
+                        },
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppDimensions.space16),
 
-                // Stock & Threshold
                 Row(
                   children: [
                     Expanded(
                       child: NirmaanTextField(
-                        label: 'Opening Stock *',
-                        hintText: '0',
-                        controller: _stockController,
+                        label: 'Initial Stock *',
+                        hintText: '50',
                         keyboardType: TextInputType.number,
-                        validator: (v) => v == null || v.trim().isEmpty
-                            ? 'Stock is required'
-                            : null,
+                        controller: _stockController,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Stock required';
+                          final val = int.tryParse(v.trim());
+                          if (val == null || val < 0) return 'Must be >= 0';
+                          return null;
+                        },
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: NirmaanTextField(
-                        label: 'Low Stock Alert Threshold',
-                        hintText: '10',
-                        controller: _thresholdController,
+                        label: 'Low Stock Threshold',
+                        hintText: '5',
                         keyboardType: TextInputType.number,
+                        controller: _thresholdController,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Threshold required';
+                          final val = int.tryParse(v.trim());
+                          if (val == null || val < 0) return 'Must be >= 0';
+                          return null;
+                        },
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppDimensions.space32),
+                const SizedBox(height: AppDimensions.space24),
 
                 NirmaanButton(
                   label: 'Save Product',
                   isLoading: _isLoading,
                   onPressed: _handleSave,
-                  icon: Icons.check,
                 ),
               ],
             ),

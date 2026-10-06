@@ -68,10 +68,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
-      await setupController.loadBusinessProfile();
+      await setupController.loadBusinessProfile(
+          currentUser: authController.currentUser);
       if (!mounted) return;
 
-      if (!setupController.isCompleted) {
+      final user = authController.currentUser;
+      final isComplete =
+          (user != null && user.setupComplete) || setupController.isCompleted;
+      if (!isComplete) {
         Navigator.of(context).pushReplacementNamed(AppRoutes.businessSetup);
       } else {
         Navigator.of(context).pushReplacementNamed(AppRoutes.mainShell);
@@ -284,6 +288,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     isLoading: authController.status == AuthStatus.loading,
                     onPressed: _handleLogin,
                     icon: Icons.login_rounded,
+                  ),
+                  const SizedBox(height: AppDimensions.space16),
+
+                  // Register Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Don\'t have an account? ',
+                        style: AppTypography.caption
+                            .copyWith(color: AppColors.textSecondary),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          authController.clearError();
+                          Navigator.of(context).pushNamed(AppRoutes.register);
+                        },
+                        child: Text(
+                          'Register Here',
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppDimensions.space24),
 

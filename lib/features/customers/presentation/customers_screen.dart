@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
-import '../../../core/seed/presentation_seed_data.dart';
+import 'package:provider/provider.dart';
+import '../../../core/routing/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../models/customer.dart';
 import '../../../shared/widgets/empty_state_view.dart';
-import '../../../shared/widgets/metric_card.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_badge.dart';
 import '../../../shared/widgets/nirmaan_card.dart';
+import '../controllers/customer_controller.dart';
 
-/// ============================================================================
-/// Customer Directory Screen (Figma Frame 4: Customers)
-/// ============================================================================
-/// Displays registered patrons, contact details, churn risk badges, and loyalty.
-/// Driven by CustomerModel seed data from PresentationSeedData.
-/// ============================================================================
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
 
@@ -24,15 +20,19 @@ class CustomersScreen extends StatefulWidget {
 
 class _CustomersScreenState extends State<CustomersScreen> {
   final _searchController = TextEditingController();
-  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = context.read<CustomerController>();
+      if (controller.customers.isEmpty) {
+        controller.loadCustomers();
+      }
+    });
+
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim().toLowerCase();
-      });
+      context.read<CustomerController>().setSearchQuery(_searchController.text);
     });
   }
 
@@ -44,145 +44,160 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allCustomers = PresentationSeedData.seedCustomers;
-    final filteredCustomers = allCustomers.where((c) {
-      if (_searchQuery.isEmpty) return true;
-      return c.name.toLowerCase().contains(_searchQuery) ||
-          c.phone.toLowerCase().contains(_searchQuery) ||
-          (c.email?.toLowerCase().contains(_searchQuery) ?? false);
-    }).toList();
-
-    final churnAtRiskCount = allCustomers.where((c) => c.isChurnRisk).length;
+    final controller = context.watch<CustomerController>();
+    final customers = controller.filteredCustomers;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
         title: 'Customer Directory',
-        subtitle: '${allCustomers.length} registered patrons',
+        subtitle: '${controller.customers.length} registered customers',
         isDark: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_add_alt_1_outlined,
-                color: Colors.white),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () => controller.loadCustomers(forceRefresh: true),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1_outlined, color: Colors.white),
+            onPressed: () =>
+                Navigator.of(context).pushNamed(AppRoutes.addCustomer),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppDimensions.space16),
+      body: Column(
         children: [
-          // Customer Metrics
-          Row(
-            children: [
-              const Expanded(
-                child: MetricCard(
-                  title: 'RETURNING',
-                  value: '68%',
-                  trend: '+4% this month',
-                  icon: Icons.repeat_rounded,
-                  iconColor: AppColors.successGreen,
-                ),
+          // Search Bar
+          Container(
+            color: AppColors.surfaceWhite,
+            padding: const EdgeInsets.all(AppDimensions.space16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search customers by name, phone or email...',
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
               ),
-              const SizedBox(width: AppDimensions.space12),
-              Expanded(
-                child: MetricCard(
-                  title: 'CHURN AT RISK',
-                  value: '$churnAtRiskCount patrons',
-                  trend: 'High priority',
-                  isTrendPositive: false,
-                  icon: Icons.person_off_outlined,
-                  iconColor: AppColors.warningOrange,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimensions.space16),
-
-          // Search Field
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search customer name or phone...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: AppColors.textMuted),
-                      onPressed: () => _searchController.clear(),
-                    )
-                  : const Icon(Icons.tune, color: AppColors.textMuted),
             ),
           ),
-          const SizedBox(height: AppDimensions.space20),
+          const Divider(height: 1),
 
-          // Customers List
-          const Text('Customer Profiles', style: AppTypography.sectionTitle),
-          const SizedBox(height: AppDimensions.space12),
+          // Error Banner with Retry
+          if (controller.errorMessage != null)
+            Container(
+              margin: const EdgeInsets.all(AppDimensions.space16),
+              padding: const EdgeInsets.all(AppDimensions.space12),
+              decoration: BoxDecoration(
+                color: AppColors.errorRed.withValues(alpha: 0.1),
+                border: Border.all(color: AppColors.errorRed),
+                borderRadius: AppDimensions.borderMd,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.errorRed),
+                  const SizedBox(width: AppDimensions.space12),
+                  Expanded(
+                    child: Text(
+                      controller.errorMessage!,
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.errorRed),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => controller.loadCustomers(forceRefresh: true),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
 
-          if (filteredCustomers.isEmpty)
-            const EmptyStateView(
-              icon: Icons.people_outline,
-              title: 'No Customers Found',
-              message: 'No customers match the entered search term.',
-            )
-          else
-            ...filteredCustomers.map((customer) {
-              final churnRiskLabel =
-                  customer.isChurnRisk ? 'At Risk' : 'Healthy';
-              final churnRiskType =
-                  customer.isChurnRisk ? BadgeType.warning : BadgeType.success;
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppDimensions.space12),
-                child: _buildCustomerCard(
-                  name: customer.name,
-                  phone: customer.phone,
-                  totalOrders: customer.totalOrders,
-                  totalSpent: '₹${customer.totalSpend.toStringAsFixed(0)}',
-                  loyaltyPoints: customer.loyaltyPoints,
-                  lastVisit: customer.lastVisit != null
-                      ? '${DateTime.now().difference(customer.lastVisit!).inDays}d ago'
-                      : 'Never',
-                  churnRisk: churnRiskLabel,
-                  churnRiskType: churnRiskType,
-                ),
-              );
-            }),
+          // Customer List / Loading / Empty State
+          Expanded(
+            child: controller.isLoading && controller.customers.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: () => controller.loadCustomers(forceRefresh: true),
+                    child: customers.isEmpty
+                        ? const Center(
+                            child: SingleChildScrollView(
+                              physics: AlwaysScrollableScrollPhysics(),
+                              child: EmptyStateView(
+                                icon: Icons.people_outline,
+                                title: 'No Customers Found',
+                                message:
+                                    'No customers match the search or directory is empty. Add a customer to build patron accounts.',
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(AppDimensions.space16),
+                            itemCount: customers.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: AppDimensions.space12),
+                            itemBuilder: (context, index) {
+                              final c = customers[index];
+                              return _buildCustomerCard(context, c);
+                            },
+                          ),
+                  ),
+          ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'customers_fab',
+        onPressed: () => Navigator.of(context).pushNamed(AppRoutes.addCustomer),
+        backgroundColor: AppColors.primaryNavy,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Customer'),
       ),
     );
   }
 
-  Widget _buildCustomerCard({
-    required String name,
-    required String phone,
-    required int totalOrders,
-    required String totalSpent,
-    required int loyaltyPoints,
-    required String lastVisit,
-    required String churnRisk,
-    required BadgeType churnRiskType,
-  }) {
+  Widget _buildCustomerCard(BuildContext context, CustomerModel c) {
     return NirmaanCard(
       padding: const EdgeInsets.all(AppDimensions.space16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(name, style: AppTypography.cardTitle),
-              NirmaanBadge(label: churnRisk, type: churnRiskType),
+              Expanded(
+                child: Text(c.name, style: AppTypography.cardTitle),
+              ),
+              NirmaanBadge(
+                label: '${c.orderCount} Orders',
+                type: BadgeType.neutral,
+              ),
             ],
           ),
-          const SizedBox(height: AppDimensions.space4),
+          const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.phone_outlined,
-                  size: 14, color: AppColors.textMuted),
-              const SizedBox(width: 4),
-              Text(phone, style: AppTypography.caption),
+              const Icon(Icons.phone_outlined, size: 16, color: AppColors.textMuted),
+              const SizedBox(width: 6),
+              Text(c.phone, style: AppTypography.body),
+              if (c.email != null && c.email!.isNotEmpty) ...[
+                const SizedBox(width: 16),
+                const Icon(Icons.email_outlined, size: 16, color: AppColors.textMuted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    c.email!,
+                    style: AppTypography.body,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ],
           ),
+          const SizedBox(height: AppDimensions.space12),
+          const Divider(height: 1),
           const SizedBox(height: AppDimensions.space12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -190,29 +205,31 @@ class _CustomersScreenState extends State<CustomersScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Orders', style: AppTypography.caption),
-                  Text('$totalOrders',
-                      style: AppTypography.cardTitle
-                          .copyWith(fontWeight: FontWeight.w700)),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Total Spent', style: AppTypography.caption),
-                  Text(totalSpent,
-                      style: AppTypography.cardTitle
-                          .copyWith(color: AppColors.primaryNavy)),
+                  const Text('Total Spend', style: AppTypography.caption),
+                  const SizedBox(height: 2),
+                  Text(
+                    '₹${c.totalSpend.toStringAsFixed(0)}',
+                    style: AppTypography.metricMedium
+                        .copyWith(color: AppColors.primaryBlue),
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text('Loyalty Points', style: AppTypography.caption),
-                  Text('$loyaltyPoints pts',
-                      style: AppTypography.cardTitle
-                          .copyWith(color: AppColors.secondaryAmberDark)),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${c.loyaltyPoints} pts',
+                    style: AppTypography.body
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppColors.errorRed, size: 20),
+                tooltip: 'Delete Customer',
+                onPressed: () => _confirmDeleteCustomer(context, c),
               ),
             ],
           ),
@@ -220,4 +237,35 @@ class _CustomersScreenState extends State<CustomersScreen> {
       ),
     );
   }
+
+  void _confirmDeleteCustomer(BuildContext context, CustomerModel c) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Customer'),
+        content: Text('Are you sure you want to remove "${c.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.errorRed),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final customerCtrl = context.read<CustomerController>();
+              final success = await customerCtrl.deleteCustomer(c.id);
+              if (context.mounted && success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Customer "${c.name}" removed')),
+                );
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
 }

@@ -1,69 +1,88 @@
 const express = require('express');
 const router = express.Router();
-const { sendSuccess, sendError } = require('../utils/responseFormatter');
+const authController = require('../controllers/authController');
+const {
+  validateRegister,
+  validateLogin,
+  validateForgotPassword,
+  validateBusinessSetup,
+} = require('../validators/authValidators');
 const { authenticate } = require('../middleware/authMiddleware');
 const { requireRoles, ROLES } = require('../middleware/rbacMiddleware');
-const { recordAuditEvent } = require('../utils/auditLogger');
+const { sendSuccess } = require('../utils/responseFormatter');
 
-// Public login (mock / dev supported)
-router.post('/login', (req, res) => {
-  const { email, password, role = 'BUSINESS_OWNER' } = req.body;
+// Public Authentication Endpoints
+router.post('/register', validateRegister, (req, res, next) =>
+  authController.register(req, res, next)
+);
 
-  if (!email || !password) {
-    return sendError(res, 'Email and password are required', 400);
+router.post('/login', validateLogin, (req, res, next) =>
+  authController.login(req, res, next)
+);
+
+router.post('/forgot-password', validateForgotPassword, (req, res, next) =>
+  authController.forgotPassword(req, res, next)
+);
+
+// Protected Authentication & Profile Endpoints
+router.get('/me', authenticate, (req, res, next) =>
+  authController.getProfile(req, res, next)
+);
+
+router.post('/business-setup', authenticate, validateBusinessSetup, (req, res, next) =>
+  authController.completeBusinessSetup(req, res, next)
+);
+
+router.get('/business', authenticate, (req, res, next) =>
+  authController.getBusiness(req, res, next)
+);
+
+router.post('/logout', authenticate, (req, res, next) =>
+  authController.logout(req, res, next)
+);
+
+router.post('/seed-demo', authenticate, (req, res, next) =>
+  authController.seedDemo(req, res, next)
+);
+
+// RBAC Role Verification Test Endpoints
+router.get(
+  '/owner-dashboard',
+  authenticate,
+  requireRoles([ROLES.BUSINESS_OWNER, ROLES.ADMINISTRATOR]),
+  (req, res) => {
+    return sendSuccess(res, {
+      access: 'GRANTED',
+      message: 'Owner Business Intelligence Access',
+      userRole: req.user.role,
+    });
   }
+);
 
-  // Supported demo credentials
-  const demoUsers = {
-    'owner@nirmaan.com': { role: ROLES.BUSINESS_OWNER, name: 'Rohan (Owner)' },
-    'manager@nirmaan.com': { role: ROLES.STORE_MANAGER, name: 'Store Manager' },
-    'staff@nirmaan.com': { role: ROLES.SALES_STAFF, name: 'Sales Associate' },
-    'admin@nirmaan.com': { role: ROLES.ADMINISTRATOR, name: 'System Admin' },
-  };
+router.get(
+  '/manager-operations',
+  authenticate,
+  requireRoles([ROLES.STORE_MANAGER, ROLES.BUSINESS_OWNER, ROLES.ADMINISTRATOR]),
+  (req, res) => {
+    return sendSuccess(res, {
+      access: 'GRANTED',
+      message: 'Store Operations & Inventory Access',
+      userRole: req.user.role,
+    });
+  }
+);
 
-  const userRole = demoUsers[email]?.role || role.toUpperCase();
-  const userName = demoUsers[email]?.name || 'Demo User';
-  const token = `mock-token-${userRole.toLowerCase()}`;
-
-  recordAuditEvent({
-    userId: email,
-    action: 'USER_LOGIN',
-    resource: '/api/v1/auth/login',
-    details: { email, role: userRole },
-    ip: req.ip,
-    status: 'SUCCESS',
-  });
-
-  return sendSuccess(
-    res,
-    {
-      user: {
-        id: 'usr_' + Date.now(),
-        email,
-        name: userName,
-        role: userRole,
-      },
-      token,
-      tokenType: 'Bearer',
-      expiresIn: '7d',
-    },
-    'Login successful'
-  );
-});
-
-// Profile endpoint (Authenticated)
-router.get('/me', authenticate, (req, res) => {
-  return sendSuccess(res, { user: req.user }, 'Current user profile');
-});
-
-// Owner-only test endpoint (Owner BI access)
-router.get('/owner-dashboard', authenticate, requireRoles([ROLES.BUSINESS_OWNER, ROLES.ADMINISTRATOR]), (req, res) => {
-  return sendSuccess(res, { access: 'GRANTED', message: 'Owner Business Intelligence Access' });
-});
-
-// Admin-only test endpoint (Governance access)
-router.get('/admin-governance', authenticate, requireRoles([ROLES.ADMINISTRATOR]), (req, res) => {
-  return sendSuccess(res, { access: 'GRANTED', message: 'System Administration & Governance Access' });
-});
+router.get(
+  '/admin-governance',
+  authenticate,
+  requireRoles([ROLES.ADMINISTRATOR]),
+  (req, res) => {
+    return sendSuccess(res, {
+      access: 'GRANTED',
+      message: 'System Administration & Governance Access',
+      userRole: req.user.role,
+    });
+  }
+);
 
 module.exports = router;

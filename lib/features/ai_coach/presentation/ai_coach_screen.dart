@@ -1,20 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../models/ai.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
-
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-
-  const ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
-}
+import '../../../shared/widgets/nirmaan_badge.dart';
+import '../../../shared/widgets/nirmaan_card.dart';
+import '../controllers/ai_controller.dart';
 
 class AiCoachScreen extends StatefulWidget {
   const AiCoachScreen({super.key});
@@ -25,75 +18,42 @@ class AiCoachScreen extends StatefulWidget {
 
 class _AiCoachScreenState extends State<AiCoachScreen> {
   final _messageController = TextEditingController();
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      text:
-          'Hello Rohan! I am your Nirmaan AI Business Coach. I have analyzed your store records for this month.\n\nYour net margin is currently 29.2%, and revenue is trending +14% compared to last week. How can I help optimize your business today?',
-      isUser: false,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-    ),
-  ];
-
-  final List<String> _suggestedPrompts = [
-    'Which items should I reorder today?',
-    'How can I increase my profit margins?',
-    'Who are my customers at risk of churn?',
-    'What was my top selling product this week?',
-  ];
-
-  bool _isTyping = false;
+  final _scrollController = ScrollController();
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
-
-    setState(() {
-      _messages.add(ChatMessage(
-        text: text.trim(),
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
-      _isTyping = true;
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
+  }
+
+  Future<void> _handleSend(AiController controller, String text) async {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+
     _messageController.clear();
-
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-
-    String aiReply;
-    final lower = text.toLowerCase();
-    if (lower.contains('reorder') || lower.contains('stock')) {
-      aiReply =
-          'Based on your recent 7-day velocity, you have 2 critical items:\n• **Fortune Sunflower Oil 1L** (2 left, sells ~4/day)\n• **Royal Basmati Rice 5kg** (4 left, sells ~3/day)\n\nI recommend placing a purchase order for 24 units of Oil and 15 bags of Rice before Thursday evening.';
-    } else if (lower.contains('margin') || lower.contains('profit')) {
-      aiReply =
-          'Your highest margin category is **Spices & Masalas (38% margin)**, while Grains are at 18% margin. Bundling slow-moving spices with staple grains can increase your average cart value by ₹120 without adding overhead.';
-    } else if (lower.contains('churn') || lower.contains('customer')) {
-      aiReply =
-          '12 customers haven\'t purchased in over 21 days. They previously averaged ₹1,200/month. A targeted WhatsApp reminder with a 5% loyalty coupon could recover ~40% of them.';
-    } else {
-      aiReply =
-          'I have noted that for your store context. Tracking daily order volume and keeping stock levels above minimum thresholds will safeguard your 29% margin.';
-    }
-
-    if (mounted) {
-      setState(() {
-        _isTyping = false;
-        _messages.add(ChatMessage(
-          text: aiReply,
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-      });
-    }
+    await controller.sendMessage(clean);
+    _scrollToBottom();
   }
 
   @override
   Widget build(BuildContext context) {
+    final aiController = context.watch<AiController>();
+    final messages = aiController.messages;
+    final isSending = aiController.isSending;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
@@ -102,43 +62,39 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
         isDark: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
+            tooltip: 'Clear Chat',
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: () {
-              showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('AI Advisory Notice'),
-                  content: const Text(
-                    'Per SRS Section 3.3 (FR-24), all AI recommendations are decision-support guidance only. The AI will never autonomously execute financial or inventory transactions without explicit owner confirmation.',
-                  ),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Understood')),
-                  ],
-                ),
-              );
+              aiController.clearChat();
             },
+          ),
+          IconButton(
+            tooltip: 'Advisory Notice',
+            icon: const Icon(Icons.info_outline, color: Colors.white),
+            onPressed: () => _showAdvisoryDialog(context),
           ),
         ],
       ),
       body: Column(
         children: [
-          // AI Decision Support Banner
+          // Decision Support Advisory Banner
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: AppColors.aiPurpleLight,
             child: Row(
               children: [
-                const Icon(Icons.auto_awesome,
-                    size: 14, color: AppColors.aiPurple),
+                const Icon(
+                  Icons.auto_awesome,
+                  size: 16,
+                  color: AppColors.aiPurple,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Decision support information · Guidance only (SRS FR-24)',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.aiPurple,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -146,40 +102,42 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
             ),
           ),
 
-          // Chat Messages
+          // Chat Messages List
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(AppDimensions.space16),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
+              itemCount: messages.length + (isSending ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == _messages.length && _isTyping) {
+                if (index == messages.length && isSending) {
                   return _buildTypingIndicator();
                 }
-                final msg = _messages[index];
-                return _buildMessageBubble(msg);
+                final msg = messages[index];
+                return _buildMessageItem(context, msg);
               },
             ),
           ),
 
-          // Suggested Prompts
-          Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _suggestedPrompts.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final prompt = _suggestedPrompts[index];
-                return ActionChip(
-                  label: Text(prompt, style: const TextStyle(fontSize: 12)),
-                  backgroundColor: AppColors.surfaceWhite,
-                  side: const BorderSide(color: AppColors.surfaceBorder),
-                  onPressed: () => _sendMessage(prompt),
-                );
-              },
+          // Suggested Prompts Horizontal Scroll
+          if (!isSending)
+            Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: aiController.suggestedPrompts.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final prompt = aiController.suggestedPrompts[index];
+                  return ActionChip(
+                    label: Text(prompt, style: const TextStyle(fontSize: 12)),
+                    backgroundColor: AppColors.surfaceWhite,
+                    side: const BorderSide(color: AppColors.surfaceBorder),
+                    onPressed: () => _handleSend(aiController, prompt),
+                  );
+                },
+              ),
             ),
-          ),
           const SizedBox(height: 8),
 
           // Text Input Bar
@@ -195,21 +153,35 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      enabled: !isSending,
                       decoration: const InputDecoration(
                         hintText: 'Ask your business coach...',
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      onSubmitted: _sendMessage,
+                      onSubmitted: (val) => _handleSend(aiController, val),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
                     style: IconButton.styleFrom(
-                        backgroundColor: AppColors.primaryNavy),
-                    icon: const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 20),
-                    onPressed: () => _sendMessage(_messageController.text),
+                      backgroundColor: AppColors.primaryNavy,
+                    ),
+                    icon: isSending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded,
+                            color: Colors.white, size: 20),
+                    onPressed: isSending
+                        ? null
+                        : () => _handleSend(
+                            aiController, _messageController.text),
                   ),
                 ],
               ),
@@ -220,7 +192,7 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg) {
+  Widget _buildMessageItem(BuildContext context, AiChatMessage msg) {
     if (msg.isUser) {
       return Align(
         alignment: Alignment.centerRight,
@@ -239,47 +211,237 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
         ),
       );
     } else {
+      final structured = msg.structuredResponse;
       return Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12, right: 48),
+          margin: const EdgeInsets.only(bottom: 16, right: 24),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.surfaceWhite,
             borderRadius:
                 BorderRadius.circular(16).copyWith(bottomLeft: Radius.zero),
-            border:
-                Border.all(color: AppColors.aiPurple.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: AppColors.aiPurple.withValues(alpha: 0.25),
+            ),
             boxShadow: AppDimensions.shadowSubtle,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header Badge & Confidence
               Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(Icons.auto_awesome,
-                      size: 14, color: AppColors.aiPurple),
-                  const SizedBox(width: 6),
-                  Text(
-                    'AI ADVISOR',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.aiPurple,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome,
+                          size: 15, color: AppColors.aiPurple),
+                      const SizedBox(width: 6),
+                      Text(
+                        'AI BUSINESS COACH',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.aiPurple,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
+                  if (structured != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlueLight.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        structured.confidence,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primaryNavy,
+                        ),
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
+
+              // Summary Text
               Text(
                 msg.text,
-                style: AppTypography.body,
+                style: AppTypography.body.copyWith(height: 1.4),
+              ),
+
+              // Insights List
+              if (structured != null && structured.insights.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    color: AppColors.backgroundLight,
+                    borderRadius: AppDimensions.borderSm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Operational Observations',
+                        style: AppTypography.caption.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ...structured.insights.map(
+                        (insight) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('• ',
+                                  style: TextStyle(
+                                      color: AppColors.primaryNavy,
+                                      fontWeight: FontWeight.bold)),
+                              Expanded(
+                                child: Text(
+                                  insight,
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Warnings
+              if (structured != null && structured.warnings.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                ...structured.warnings.map(
+                  (warn) => Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.alertAmber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.alertAmber.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded,
+                            size: 16, color: AppColors.alertAmber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            warn,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Recommendations Section
+              if (structured != null &&
+                  structured.recommendations.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Recommended Actions (User Confirmation Required)',
+                  style: AppTypography.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryNavy,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...structured.recommendations.map(
+                  (rec) => _buildRecommendationCard(context, rec),
+                ),
+              ],
+
+              // Disclaimer
+              const SizedBox(height: 10),
+              Text(
+                structured?.disclaimer ??
+                    'Decision-support guidance only. Not financial or business guarantees.',
+                style: AppTypography.caption.copyWith(
+                  fontSize: 10,
+                  color: AppColors.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
           ),
         ),
       );
     }
+  }
+
+  Widget _buildRecommendationCard(BuildContext context, AiRecommendation rec) {
+    BadgeType badgeType = BadgeType.info;
+    if (rec.category == 'INVENTORY') badgeType = BadgeType.warning;
+    if (rec.category == 'SALES') badgeType = BadgeType.success;
+
+    return NirmaanCard(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  rec.title,
+                  style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                ),
+              ),
+              NirmaanBadge(label: rec.category, type: badgeType),
+            ],
+          ),
+          if (rec.description.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(rec.description, style: AppTypography.caption),
+          ],
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryNavy,
+                side: const BorderSide(color: AppColors.primaryNavy),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+              label: Text(rec.actionLabel, style: const TextStyle(fontSize: 11)),
+              onPressed: () {
+                // Safe user-directed navigation. The user explicitly reviews and acts.
+                Navigator.of(context).pushNamed(rec.route);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTypingIndicator() {
@@ -300,12 +462,39 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
               width: 14,
               height: 14,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.aiPurple),
+                strokeWidth: 2,
+                color: AppColors.aiPurple,
+              ),
             ),
             SizedBox(width: 10),
-            Text('Analyzing store data...', style: AppTypography.caption),
+            Text('Synthesizing store intelligence...',
+                style: AppTypography.caption),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAdvisoryDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: AppColors.aiPurple, size: 20),
+            SizedBox(width: 8),
+            Text('AI Decision Support Notice'),
+          ],
+        ),
+        content: const Text(
+          'Per SRS Section 3.3 (FR-24), all AI recommendations are decision-support guidance only. The AI will never autonomously mutate inventory, orders, prices, or live business records without your explicit review and confirmation.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood'),
+          ),
+        ],
       ),
     );
   }

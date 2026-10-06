@@ -21,6 +21,20 @@ class ProfileScreen extends StatelessWidget {
     final user = authController.currentUser;
     final role = user?.role ?? UserRole.businessOwner;
     final profile = setupController.businessProfile;
+    final storeName = (profile != null && profile.businessName.isNotEmpty)
+        ? profile.businessName
+        : 'Not configured';
+    final storeCategory = (profile != null && profile.category.isNotEmpty)
+        ? profile.category
+        : 'Not specified';
+    final storePhone = (profile != null && profile.phone.isNotEmpty)
+        ? profile.phone
+        : 'Not specified';
+    final storeAddress = (profile != null &&
+            profile.address != null &&
+            profile.address!.isNotEmpty)
+        ? profile.address!
+        : 'Not specified';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -83,17 +97,13 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(AppDimensions.space16),
             child: Column(
               children: [
-                _buildInfoRow('Store Name',
-                    profile?.businessName ?? 'Nirmaan General Store'),
+                _buildInfoRow('Store Name', storeName),
                 const Divider(height: 20),
-                _buildInfoRow(
-                    'Category', profile?.category ?? 'Grocery & FMCG'),
+                _buildInfoRow('Category', storeCategory),
                 const Divider(height: 20),
-                _buildInfoRow(
-                    'WhatsApp / Phone', profile?.phone ?? '+91 98765 43210'),
+                _buildInfoRow('WhatsApp / Phone', storePhone),
                 const Divider(height: 20),
-                _buildInfoRow('Store Location',
-                    profile?.address ?? 'Shop 14, Market Road, Ahmedabad'),
+                _buildInfoRow('Store Location', storeAddress),
                 const Divider(height: 20),
                 _buildInfoRow('Default Currency', '₹ (INR - Indian Rupee)'),
               ],

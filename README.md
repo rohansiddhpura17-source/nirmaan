@@ -83,12 +83,14 @@ NIRMAAN/
 │   ├── core/
 │   │   ├── constants/                  # Environment config & constants
 │   │   ├── errors/                     # Failures & exceptions
-│   │   ├── routing/                    # AppRoutes & AppRouter
+│   │   ├── routing/                    # AppRoutes & AppRouter (Splash, Login, Register, ...)
 │   │   └── theme/                      # AppColors, Typography, Dimensions, AppTheme
 │   ├── features/
 │   │   ├── ai_coach/                   # Screen 11: AI Business Coach
 │   │   ├── analytics/                  # Screen 13: Business Analytics
-│   │   ├── auth/                       # Screens 1-3: Splash, Login, Forgot Password
+│   │   ├── auth/                       # Screens 1-3: Splash, Login, Register, Forgot Password
+│   │   │   ├── controllers/            # AuthController (Session, Register, Login, Reset)
+│   │   │   └── presentation/           # SplashScreen, LoginScreen, RegisterScreen, ForgotPasswordScreen
 │   │   ├── business_health/            # Screen 14: Business Health Score
 │   │   ├── business_setup/             # Screen 4: Business Setup & Profile
 │   │   ├── customers/                  # Screen 10: Customer Directory (Tab 4)
@@ -103,8 +105,8 @@ NIRMAAN/
 │   │   ├── settings/                   # Screen 17: Settings & Governance
 │   │   └── todays_business/            # Screen 12: Today's Business Brief
 │   ├── models/                         # Domain entities (User, Product, Order, Customer, etc.)
-│   ├── repositories/                   # Clean repository implementations
-│   ├── services/                       # API client, Auth, Storage, Firebase foundation
+│   ├── repositories/                   # Clean repository implementations (AuthRepository, etc.)
+│   ├── services/                       # API client, HttpAuthService, MockAuthService, StorageService
 │   └── shared/                         # Reusable cards, buttons, badges, chips, app bar, bottom nav
 │
 ├── backend/                            # Node.js / Express REST API
@@ -115,14 +117,20 @@ NIRMAAN/
 │   │   ├── app.js                      # Express middleware, security, routes
 │   │   ├── server.js                   # Server bootstrap & graceful shutdown
 │   │   ├── config/                     # Environment configuration
+│   │   ├── controllers/                # AuthController
 │   │   ├── middleware/                 # Auth, RBAC, Error Handler, Logger
-│   │   ├── routes/                     # Health, Auth, and operational routes
+│   │   ├── models/                     # User model with PBKDF2 hashing
+│   │   ├── repositories/               # UserRepository with seeded demo accounts
+│   │   ├── routes/                     # AuthRoutes, HealthRoutes
+│   │   ├── services/                   # AuthService
 │   │   ├── utils/                      # Response formatter & Audit logger
-│   │   └── validators/                 # Request validation rules
+│   │   └── validators/                 # AuthValidators (Register, Login, ForgotPassword)
 │   └── tests/
-│       └── health.test.js              # Unit tests for health & RBAC enforcement
+│       ├── auth.test.js                # Suite for registration, login, logout, RBAC
+│       └── health.test.js              # Health & RBAC verification
 │
 ├── test/                               # Flutter Test Suite
+│   ├── auth_test.dart                  # Phase 2 unit & widget tests (Auth flow & UI)
 │   ├── unit_test.dart                  # Role permissions & calculations test
 │   └── widget_test.dart                # Widget rendering test
 ├── pubspec.yaml                        # Flutter dependencies

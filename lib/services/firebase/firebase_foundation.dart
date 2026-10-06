@@ -1,20 +1,33 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import '../../firebase_options.dart';
 
 class FirebaseFoundation {
   static bool _isInitialized = false;
   static bool get isInitialized => _isInitialized;
 
-  // Firebase project configuration identifiers
-  static const String projectId = 'nirmaan-prod';
-  static const String storageBucket = 'nirmaan-prod.appspot.com';
+  // Genuine Firebase project configuration identifiers
+  static const String projectId = 'nirman-e15ef';
+  static const String storageBucket = 'nirman-e15ef.firebasestorage.app';
 
-  /// Initializes Firebase or graceful mock foundation for local dev/testing
+  /// Initializes Firebase using genuine project configuration options
   static Future<void> initialize() async {
     try {
-      // In early Phase 1 development or test mode, we initialize the foundation cleanly
+      if (Firebase.apps.isNotEmpty) {
+        _isInitialized = true;
+        return;
+      }
+      FirebaseOptions? options;
+      try {
+        options = DefaultFirebaseOptions.currentPlatform;
+      } catch (_) {
+        // Fallback to Android options if running off-device or in test harness
+        options = DefaultFirebaseOptions.android;
+      }
+      await Firebase.initializeApp(options: options);
       _isInitialized = true;
       debugPrint(
-          '[FirebaseFoundation] Firebase foundation initialized (project: $projectId)');
+          '[FirebaseFoundation] Firebase foundation initialized successfully for $projectId');
     } catch (e) {
       debugPrint(
           '[FirebaseFoundation] Firebase initialization skipped/deferred: $e');

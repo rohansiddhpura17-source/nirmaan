@@ -7,6 +7,7 @@ class UserModel {
   final String? phone;
   final UserRole role;
   final String? businessId;
+  final bool setupComplete;
   final DateTime createdAt;
 
   const UserModel({
@@ -16,6 +17,7 @@ class UserModel {
     this.phone,
     required this.role,
     this.businessId,
+    this.setupComplete = false,
     required this.createdAt,
   });
 
@@ -23,10 +25,11 @@ class UserModel {
     return UserModel(
       id: json['id'] as String? ?? json['uid'] as String? ?? '',
       email: json['email'] as String? ?? '',
-      name: json['name'] as String? ?? '',
+      name: json['name'] as String? ?? json['displayName'] as String? ?? '',
       phone: json['phone'] as String?,
       role: UserRole.fromCode(json['role'] as String?),
       businessId: json['businessId'] as String?,
+      setupComplete: json['setupComplete'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -36,11 +39,13 @@ class UserModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'uid': id,
       'email': email,
       'name': name,
       'phone': phone,
       'role': role.code,
       'businessId': businessId,
+      'setupComplete': setupComplete,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -52,6 +57,7 @@ class UserModel {
     String? phone,
     UserRole? role,
     String? businessId,
+    bool? setupComplete,
     DateTime? createdAt,
   }) {
     return UserModel(
@@ -61,6 +67,7 @@ class UserModel {
       phone: phone ?? this.phone,
       role: role ?? this.role,
       businessId: businessId ?? this.businessId,
+      setupComplete: setupComplete ?? this.setupComplete,
       createdAt: createdAt ?? this.createdAt,
     );
   }

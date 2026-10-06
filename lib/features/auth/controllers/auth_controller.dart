@@ -76,6 +76,70 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+    required UserRole role,
+    String? phone,
+    String? businessName,
+  }) async {
+    _status = AuthStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final user = await _authRepository.register(
+        name: name,
+        email: email,
+        password: password,
+        role: role,
+        phone: phone,
+        businessName: businessName,
+      );
+      _currentUser = user;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _status = AuthStatus.error;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> sendPasswordReset(String email) async {
+    _status = AuthStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _authRepository.sendPasswordReset(email);
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _status = AuthStatus.error;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clearError() {
+    if (_errorMessage != null) {
+      _errorMessage = null;
+      notifyListeners();
+    }
+  }
+
+  void updateCurrentUser(UserModel user) {
+    _currentUser = user;
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
   void switchRoleForDemo(UserRole newRole) {
     if (_currentUser != null) {
       _currentUser = _currentUser!.copyWith(role: newRole);

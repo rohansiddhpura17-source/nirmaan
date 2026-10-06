@@ -30,12 +30,16 @@ class _SplashScreenState extends State<SplashScreen> {
     final setupController = context.read<BusinessSetupController>();
 
     await authController.checkAuthStatus();
-    await setupController.loadBusinessProfile();
+    await setupController.loadBusinessProfile(
+        currentUser: authController.currentUser);
 
     if (!mounted) return;
 
     if (authController.isAuthenticated) {
-      if (!setupController.isCompleted) {
+      final user = authController.currentUser;
+      final isComplete =
+          (user != null && user.setupComplete) || setupController.isCompleted;
+      if (!isComplete) {
         Navigator.of(context).pushReplacementNamed(AppRoutes.businessSetup);
       } else {
         Navigator.of(context).pushReplacementNamed(AppRoutes.mainShell);

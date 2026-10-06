@@ -96,10 +96,13 @@ class NirmaanButton extends StatelessWidget {
                     Icon(icon, size: 18, color: foregroundColor),
                     const SizedBox(width: AppDimensions.space8),
                   ],
-                  Text(
-                    label,
-                    style: AppTypography.button.copyWith(
-                      color: isDisabled ? AppColors.textMuted : foregroundColor,
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.button.copyWith(
+                        color: isDisabled ? AppColors.textMuted : foregroundColor,
+                      ),
                     ),
                   ),
                 ],

@@ -35,7 +35,7 @@ test('RBAC Access Enforcement', (t, done) => {
         `http://localhost:${port}/api/v1/auth/owner-dashboard`,
         {
           headers: {
-            Authorization: 'Bearer mock-token-sales_staff',
+            Authorization: 'Bearer test-token-sales_staff',
           },
         },
         (resStaff) => {
@@ -46,7 +46,7 @@ test('RBAC Access Enforcement', (t, done) => {
             `http://localhost:${port}/api/v1/auth/owner-dashboard`,
             {
               headers: {
-                Authorization: 'Bearer mock-token-business_owner',
+                Authorization: 'Bearer test-token-business_owner',
               },
             },
             (resOwner) => {

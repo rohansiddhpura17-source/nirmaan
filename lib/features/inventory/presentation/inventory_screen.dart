@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../../core/routing/app_routes.dart';
-import '../../../core/seed/presentation_seed_data.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../models/inventory.dart';
 import '../../../shared/widgets/empty_state_view.dart';
 import '../../../shared/widgets/metric_card.dart';
 import '../../../shared/widgets/nirmaan_app_bar.dart';
 import '../../../shared/widgets/nirmaan_badge.dart';
 import '../../../shared/widgets/nirmaan_card.dart';
+import '../../../shared/widgets/nirmaan_chip.dart';
+import '../controllers/inventory_controller.dart';
+import 'adjust_stock_dialog.dart';
 
-/// ============================================================================
-/// Inventory Management Screen (Figma Frame 3: Inventory)
-/// ============================================================================
-/// Displays inventory stock counts, reorder thresholds, low-stock warnings,
-/// and live search. Uses ProductModel seed data from PresentationSeedData.
-/// ============================================================================
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
 
@@ -25,15 +22,20 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   final _searchController = TextEditingController();
-  String _searchQuery = '';
+  final List<String> _statusFilters = ['ALL', 'LOW_STOCK', 'OUT_OF_STOCK', 'IN_STOCK'];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = context.read<InventoryController>();
+      if (controller.items.isEmpty) {
+        controller.loadInventory();
+      }
+    });
+
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim().toLowerCase();
-      });
+      context.read<InventoryController>().setSearchQuery(_searchController.text);
     });
   }
 
@@ -43,185 +45,286 @@ class _InventoryScreenState extends State<InventoryScreen> {
     super.dispose();
   }
 
+  void _openAdjustDialog(BuildContext context, {String? productId}) async {
+    final controller = context.read<InventoryController>();
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AdjustStockDialog(
+        items: controller.items,
+        initialProductId: productId,
+      ),
+    );
+
+    if (result == true && mounted) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Stock adjustment applied successfully!')),
+      );
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    final allProducts = PresentationSeedData.seedProducts;
-    final filteredProducts = allProducts.where((p) {
-      if (_searchQuery.isEmpty) return true;
-      return p.name.toLowerCase().contains(_searchQuery) ||
-          (p.sku != null && p.sku!.toLowerCase().contains(_searchQuery)) ||
-          p.category.toLowerCase().contains(_searchQuery);
-    }).toList();
-
-    final totalInventoryValue = allProducts.fold<double>(
-      0.0,
-      (sum, p) => sum + (p.currentStock * p.purchasePrice),
-    );
-    final lowStockCount = allProducts.where((p) => p.isLowStock).length;
+    final controller = context.watch<InventoryController>();
+    final summary = controller.summary;
+    final items = controller.filteredItems;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: NirmaanAppBar(
         title: 'Inventory Management',
-        subtitle: '${allProducts.length} SKU items tracked',
+        subtitle: '${summary.totalProducts} items · ${summary.totalStockUnits} units tracked',
         isDark: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () => controller.loadInventory(forceRefresh: true),
           ),
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () =>
-                Navigator.of(context).pushNamed(AppRoutes.addProduct),
+            icon: const Icon(Icons.tune, color: Colors.white),
+            tooltip: 'Adjust Stock',
+            onPressed: () => _openAdjustDialog(context),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppDimensions.space16),
+      body: Column(
         children: [
           // KPI Summary Row
-          Row(
-            children: [
-              Expanded(
-                child: MetricCard(
-                  title: 'TOTAL VALUE',
-                  value: '₹${totalInventoryValue.toStringAsFixed(0)}',
-                  icon: Icons.account_balance_wallet_outlined,
-                  iconColor: AppColors.primaryBlue,
+          Container(
+            color: AppColors.surfaceWhite,
+            padding: const EdgeInsets.all(AppDimensions.space16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        title: 'TOTAL VALUATION',
+                        value: '₹${summary.inventoryValuation.toStringAsFixed(0)}',
+                        icon: Icons.account_balance_wallet_outlined,
+                        iconColor: AppColors.primaryBlue,
+                      ),
+                    ),
+                    const SizedBox(width: AppDimensions.space12),
+                    Expanded(
+                      child: MetricCard(
+                        title: 'LOW STOCK',
+                        value: '${summary.lowStockCount} Items',
+                        trend: summary.lowStockCount > 0 ? 'Action required' : 'Stock healthy',
+                        isTrendPositive: summary.lowStockCount == 0,
+                        icon: Icons.warning_amber_rounded,
+                        iconColor: summary.lowStockCount > 0 ? AppColors.alertAmber : AppColors.successGreen,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: AppDimensions.space12),
-              Expanded(
-                child: MetricCard(
-                  title: 'LOW STOCK',
-                  value: '$lowStockCount Items',
-                  trend: 'Reorder needed',
-                  isTrendPositive: false,
-                  icon: Icons.warning_amber_rounded,
-                  iconColor: AppColors.warningOrange,
+                const SizedBox(height: AppDimensions.space12),
+                // Search Field
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search items by name, SKU or category...',
+                    prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimensions.space16),
-
-          // Search Field
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search SKU, name, or category...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: AppColors.textMuted),
-                      onPressed: () => _searchController.clear(),
-                    )
-                  : const Icon(Icons.tune, color: AppColors.textMuted),
+                const SizedBox(height: AppDimensions.space8),
+                // Filter Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _statusFilters.map((s) {
+                      final label = s.replaceAll('_', ' ');
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: NirmaanChip(
+                          label: label,
+                          isSelected: controller.selectedStatus == s,
+                          onSelected: (_) => controller.setSelectedStatus(s),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: AppDimensions.space20),
+          const Divider(height: 1),
 
-          // Stock Items List
-          const Text('Stock Status', style: AppTypography.sectionTitle),
-          const SizedBox(height: AppDimensions.space12),
+          // Error Banner with Retry
+          if (controller.errorMessage != null)
+            Container(
+              margin: const EdgeInsets.all(AppDimensions.space16),
+              padding: const EdgeInsets.all(AppDimensions.space12),
+              decoration: BoxDecoration(
+                color: AppColors.errorRed.withValues(alpha: 0.1),
+                border: Border.all(color: AppColors.errorRed),
+                borderRadius: AppDimensions.borderMd,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.errorRed),
+                  const SizedBox(width: AppDimensions.space12),
+                  Expanded(
+                    child: Text(
+                      controller.errorMessage!,
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.errorRed),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => controller.loadInventory(forceRefresh: true),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
 
-          if (filteredProducts.isEmpty)
-            const EmptyStateView(
-              icon: Icons.inventory_2_outlined,
-              title: 'No Products Found',
-              message: 'No inventory matches your search filter.',
-            )
-          else
-            ...filteredProducts.map((product) {
-              final badgeLabel = product.currentStock == 0
-                  ? 'OUT OF STOCK'
-                  : product.isLowStock
-                      ? 'LOW STOCK'
-                      : 'HEALTHY';
-              final badgeType = product.currentStock == 0
-                  ? BadgeType.error
-                  : product.isLowStock
-                      ? BadgeType.warning
-                      : BadgeType.success;
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppDimensions.space12),
-                child: _buildStockItemCard(
-                  name: product.name,
-                  sku: product.sku ?? 'N/A',
-                  category: product.category,
-                  stock: product.currentStock,
-                  threshold: product.minStockThreshold,
-                  purchasePrice: '₹${product.purchasePrice.toStringAsFixed(0)}',
-                  sellingPrice: '₹${product.sellingPrice.toStringAsFixed(0)}',
-                  badge: badgeLabel,
-                  badgeType: badgeType,
-                ),
-              );
-            }),
+          // Inventory Items List / Loading / Empty State
+          Expanded(
+            child: controller.isLoading && controller.items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: () => controller.loadInventory(forceRefresh: true),
+                    child: items.isEmpty
+                        ? const Center(
+                            child: SingleChildScrollView(
+                              physics: AlwaysScrollableScrollPhysics(),
+                              child: EmptyStateView(
+                                icon: Icons.inventory_2_outlined,
+                                title: 'No Inventory Items Found',
+                                message:
+                                    'No stock matches your search filter or inventory is empty.',
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(AppDimensions.space16),
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: AppDimensions.space12),
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return _buildInventoryCard(context, item);
+                            },
+                          ),
+                  ),
+          ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'inventory_fab',
+        onPressed: () => _openAdjustDialog(context),
+        backgroundColor: AppColors.primaryNavy,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.tune),
+        label: const Text('Adjust Stock'),
       ),
     );
   }
 
-  Widget _buildStockItemCard({
-    required String name,
-    required String sku,
-    required String category,
-    required int stock,
-    required int threshold,
-    required String purchasePrice,
-    required String sellingPrice,
-    required String badge,
-    required BadgeType badgeType,
-  }) {
+  Widget _buildInventoryCard(BuildContext context, InventoryItemModel item) {
+    final badge = item.isOutOfStock
+        ? 'OUT OF STOCK'
+        : item.isLowStock
+            ? 'LOW STOCK'
+            : 'IN STOCK';
+    final badgeType = item.isOutOfStock
+        ? BadgeType.error
+        : item.isLowStock
+            ? BadgeType.warning
+            : BadgeType.success;
+
     return NirmaanCard(
       padding: const EdgeInsets.all(AppDimensions.space16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(category.toUpperCase(),
-                  style: AppTypography.caption.copyWith(letterSpacing: 0.5)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.name, style: AppTypography.cardTitle),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${item.category} · SKU: ${item.sku ?? "N/A"}',
+                      style: AppTypography.caption,
+                    ),
+                  ],
+                ),
+              ),
               NirmaanBadge(label: badge, type: badgeType),
             ],
           ),
-          const SizedBox(height: AppDimensions.space6),
-          Text(name, style: AppTypography.cardTitle),
-          Text('SKU: $sku', style: AppTypography.caption),
           const SizedBox(height: AppDimensions.space12),
-
-          // Stock count & Reorder Progress
+          const Divider(height: 1),
+          const SizedBox(height: AppDimensions.space12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('In Stock', style: AppTypography.caption),
-                  Text('$stock units',
-                      style: AppTypography.cardTitle
-                          .copyWith(fontWeight: FontWeight.w700)),
+                  const Text('Current Stock', style: AppTypography.caption),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${item.currentStock} ${item.unit}',
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: item.isOutOfStock
+                          ? AppColors.errorRed
+                          : (item.isLowStock
+                              ? AppColors.alertAmber
+                              : AppColors.textPrimary),
+                    ),
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Min Threshold', style: AppTypography.caption),
-                  Text('$threshold units', style: AppTypography.cardTitle),
+                  const Text('Reorder Level', style: AppTypography.caption),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${item.minStockThreshold} ${item.unit}',
+                    style: AppTypography.caption,
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('Sell Price', style: AppTypography.caption),
-                  Text(sellingPrice,
-                      style: AppTypography.cardTitle
-                          .copyWith(color: AppColors.primaryBlue)),
+                  const Text('Valuation', style: AppTypography.caption),
+                  const SizedBox(height: 2),
+                  Text(
+                    '₹${item.valuation.toStringAsFixed(0)}',
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
                 ],
+              ),
+
+            ],
+          ),
+          const SizedBox(height: AppDimensions.space12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.edit_note, size: 18),
+                label: const Text('Adjust'),
+                onPressed: () => _openAdjustDialog(context, productId: item.productId),
               ),
             ],
           ),

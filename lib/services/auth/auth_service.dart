@@ -14,6 +14,7 @@ abstract class AuthService {
     required String password,
     required UserRole role,
     String? phone,
+    String? businessName,
   });
 
   Future<void> sendPasswordResetEmail(String email);

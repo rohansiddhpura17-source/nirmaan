@@ -50,4 +50,21 @@ app.*.map.json
 # Backend
 backend/node_modules/
 backend/.env
+backend/.env.local
 backend/logs/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# General Environment
+.env
+.env.*
+!.env.example
+
+scratch/
+
+
